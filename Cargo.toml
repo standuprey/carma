@@ -1,0 +1,21 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/interfaces",
+    "crates/clock",
+    "crates/audio-io",
+    "crates/recorder",
+    "crates/engine",
+    "crates/cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+interfaces = { path = "crates/interfaces" }
+clock = { path = "crates/clock" }
+audio-io = { path = "crates/audio-io" }
+recorder = { path = "crates/recorder" }
+engine = { path = "crates/engine" }

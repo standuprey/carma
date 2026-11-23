@@ -1,0 +1,8 @@
+[package]
+name = "clock"
+version.workspace = true
+edition.workspace = true
+description = "passive sample-accurate frame counter timeline"
+
+[dependencies]
+interfaces.workspace = true
