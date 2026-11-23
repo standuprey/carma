@@ -1,0 +1,13 @@
+[package]
+name = "cli"
+version.workspace = true
+edition.workspace = true
+description = "carma command-line front end; talks to the engine facade only"
+
+[[bin]]
+name = "carma"
+path = "src/main.rs"
+
+[dependencies]
+interfaces.workspace = true
+engine = { workspace = true }
