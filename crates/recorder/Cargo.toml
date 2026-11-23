@@ -1,0 +1,8 @@
+[package]
+name = "recorder"
+version.workspace = true
+edition.workspace = true
+description = "consumes an interleaved f32 frame stream and writes 24-bit PCM WAV"
+
+[dependencies]
+interfaces.workspace = true
