@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "updated": "2026-11-23T00:27Z",
+  "gates": {
+    "G0": {
+      "state": "approved",
+      "at": "2026-11-23T00:27Z",
+      "note": "carma v0 CLI recorder: Rust workspace, PipeWire backend behind audio-io, passive clock, ring-stream + control channel, engine facade, 24-bit WAV stereo."
+    },
+    "G2": {
+      "state": "approved",
+      "at": "2026-11-23T00:27Z",
+      "note": "carma v0 CLI recorder: Rust workspace, PipeWire backend behind audio-io, passive clock, ring-stream + control channel, engine facade, 24-bit WAV stereo."
+    }
+  },
+  "issues": [
+    {
+      "ref": "#1",
+      "url": "https://github.com/standuprey/carma/issues/1",
+      "state": "open"
+    }
+  ],
+  "tickets": {
+    "00": {
+      "status": "todo",
+      "issues": [
+        {
+          "ref": "#2",
+          "url": "https://github.com/standuprey/carma/issues/2",
+          "state": "open"
+        }
+      ]
+    },
+    "01": {
+      "status": "todo",
+      "issues": [
+        {
+          "ref": "#3",
+          "url": "https://github.com/standuprey/carma/issues/3",
+          "state": "open"
+        }
+      ]
+    },
+    "02": {
+      "status": "todo",
+      "issues": [
+        {
+          "ref": "#4",
+          "url": "https://github.com/standuprey/carma/issues/4",
+          "state": "open"
+        }
+      ]
+    },
+    "03": {
+      "status": "todo",
+      "issues": [
+        {
+          "ref": "#5",
+          "url": "https://github.com/standuprey/carma/issues/5",
+          "state": "open"
+        }
+      ]
+    }
+  }
+}
