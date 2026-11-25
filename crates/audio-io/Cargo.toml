@@ -1,0 +1,8 @@
+[package]
+name = "audio-io"
+version.workspace = true
+edition.workspace = true
+description = "audio capture sources behind the AudioSource trait"
+
+[dependencies]
+interfaces.workspace = true

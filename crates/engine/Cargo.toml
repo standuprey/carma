@@ -1,0 +1,12 @@
+[package]
+name = "engine"
+version.workspace = true
+edition.workspace = true
+description = "composition root wiring the modules behind the engine facade"
+
+[dependencies]
+interfaces.workspace = true
+clock = { workspace = true }
+audio-io = { workspace = true }
+recorder = { workspace = true }
+ctrlc = "3"

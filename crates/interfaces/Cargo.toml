@@ -1,0 +1,8 @@
+[package]
+name = "interfaces"
+version.workspace = true
+edition.workspace = true
+description = "carma module traits and streaming constants; no logic"
+
+[dependencies]
+thiserror = "2"
