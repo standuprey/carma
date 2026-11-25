@@ -57,7 +57,12 @@ impl CarmaEngine {
         ctrlc::set_handler(move || {
             let _ = signaler.send(());
         })
-        .map_err(|e| EngineError::Start(format!("cannot install signal handler: {e}")))?;
+        .map_err(|e| {
+            // Recording already began; stop cleanly so the worker exits and the
+            // WAV is finalized to a valid file before we report the error.
+            let _ = self.stop();
+            EngineError::Start(format!("cannot install signal handler: {e}"))
+        })?;
         // Keep the sender alive so `rx` does not close while recording.
         let _alive = tx;
         let _ = rx.recv();
@@ -122,16 +127,31 @@ impl Engine for CarmaEngine {
             return Ok(());
         }
         self.stop.store(true, Ordering::Release);
+
+        // Join the worker regardless of outcome so finalize always runs below.
+        // A panicked worker must not skip WAV finalization.
+        let mut problems = Vec::new();
         if let Some(handle) = self.handle.take() {
-            handle
-                .join()
-                .map_err(|_| EngineError::Stop("record thread panicked".into()))?;
+            if handle.join().is_err() {
+                problems.push("record thread panicked".to_string());
+            }
         }
-        if let Some(mut r) = self.recorder.lock().unwrap().take() {
-            r.finalize().map_err(|e| EngineError::Stop(e.to_string()))?;
+
+        // Recover a poisoned lock: if the worker panicked while holding it, we
+        // still take and finalize the recorder so the file is left valid.
+        let recorder = self.recorder.lock().unwrap_or_else(|e| e.into_inner()).take();
+        if let Some(mut r) = recorder {
+            if let Err(e) = r.finalize() {
+                problems.push(format!("finalize failed: {e}"));
+            }
         }
+
         self.recording.store(false, Ordering::Release);
-        Ok(())
+        if problems.is_empty() {
+            Ok(())
+        } else {
+            Err(EngineError::Stop(problems.join("; ")))
+        }
     }
 
     fn status(&self) -> EngineStatus {
