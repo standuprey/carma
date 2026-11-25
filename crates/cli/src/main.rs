@@ -1,21 +1,23 @@
-//! `carma` command-line front end. Parses `record -o <file>`, drives the
-//! engine facade and prints the result. It never reaches into clock, audio-io
-//! or recorder directly.
+//! `carma` command-line front end. Parses `devices` and `record -d <device>`,
+//! drives the engine facade and prints the result. It never reaches into
+//! clock, audio-io or recorder directly.
 
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use engine::CarmaEngine;
-use interfaces::Engine;
+use interfaces::{Engine, SAMPLE_RATE};
 
 const USAGE: &str = "\
 carma — modular audio recorder
 
 USAGE:
-    carma record [-o <out.wav>]   record from the built-in fake source until Ctrl-C
+    carma devices                          list available capture devices
+    carma record -d <device> [-o <out.wav>]  record from a capture device until Ctrl-C
 
 OPTIONS:
-    -o, --output <out.wav>   output file (default: out.wav)
+    -d, --device <device>   capture device to record from (required)
+    -o, --output <out.wav>  output file (default: out.wav)
 ";
 
 fn main() -> ExitCode {
@@ -26,6 +28,7 @@ fn main() -> ExitCode {
     };
 
     match cmd.as_str() {
+        "devices" => devices(),
         "record" => record(args),
         "--help" | "-h" | "help" => {
             println!("{USAGE}");
@@ -38,10 +41,38 @@ fn main() -> ExitCode {
     }
 }
 
+/// Lists available capture devices and prints their friendly descriptions.
+fn devices() -> ExitCode {
+    match CarmaEngine::list_devices() {
+        Ok(devices) => {
+            if devices.is_empty() {
+                println!("(no capture devices found)");
+                return ExitCode::SUCCESS;
+            }
+            for device in &devices {
+                println!("{}", device.description);
+            }
+            ExitCode::SUCCESS
+        }
+        Err(e) => {
+            eprintln!("failed to list devices: {e}");
+            ExitCode::FAILURE
+        }
+    }
+}
+
 fn record(mut args: impl Iterator<Item = String>) -> ExitCode {
     let mut out = PathBuf::from("out.wav");
+    let mut device: Option<String> = None;
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            "-d" | "--device" => match args.next() {
+                Some(v) => device = Some(v),
+                None => {
+                    eprintln!("missing value for {arg}\n\n{USAGE}");
+                    return ExitCode::from(2);
+                }
+            },
             "-o" | "--output" | "--out" => match args.next() {
                 Some(v) => out = PathBuf::from(v),
                 None => {
@@ -60,12 +91,37 @@ fn record(mut args: impl Iterator<Item = String>) -> ExitCode {
         }
     }
 
-    print!(
-        "recording from FakeAudioSource to {} — press Ctrl-C to stop\n",
+    let Some(selector) = device else {
+        eprintln!("missing required device: -d <device>\n\n{USAGE}");
+        return ExitCode::from(2);
+    };
+
+    let device = match CarmaEngine::find_capture_device(&selector) {
+        Ok(Some(d)) => d,
+        Ok(None) => {
+            eprintln!("no capture device matches: {selector}");
+            return ExitCode::FAILURE;
+        }
+        Err(e) => {
+            eprintln!("failed to look up device: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    let mut engine = match CarmaEngine::for_device(device) {
+        Ok(e) => e,
+        Err(err) => {
+            eprintln!("failed to open device: {err}");
+            return ExitCode::FAILURE;
+        }
+    };
+
+    println!(
+        "recording from {} to {} — press Ctrl-C to stop\n",
+        selector,
         out.display()
     );
 
-    let mut engine = CarmaEngine::new();
     if let Err(e) = engine.record_until_signal(&out) {
         eprintln!("recording failed: {e}");
         return ExitCode::FAILURE;
@@ -73,9 +129,10 @@ fn record(mut args: impl Iterator<Item = String>) -> ExitCode {
 
     let status = engine.status();
     println!(
-        "wrote {} frames ({}s stereo 48kHz 24-bit) to {}",
+        "wrote {} frames ({}s stereo {}Hz 24-bit) to {}",
         status.written_frames,
-        status.written_frames as f64 / 48_000.0,
+        status.written_frames as f64 / SAMPLE_RATE as f64,
+        SAMPLE_RATE,
         out.display()
     );
     ExitCode::SUCCESS

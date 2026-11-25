@@ -18,9 +18,8 @@ use interfaces::{
 use recorder::WavRecorder;
 
 /// The concrete, wired engine.
-#[derive(Debug)]
 pub struct CarmaEngine {
-    source: Arc<Mutex<FakeAudioSource>>,
+    source: Arc<Mutex<Box<dyn AudioSource + Send>>>,
     clock: Arc<Mutex<FrameClock>>,
     recorder: Arc<Mutex<Option<WavRecorder>>>,
     stop: Arc<AtomicBool>,
@@ -37,8 +36,30 @@ impl Default for CarmaEngine {
 
 impl CarmaEngine {
     pub fn new() -> Self {
+        Self::with_source(Box::new(FakeAudioSource::new()))
+    }
+
+    /// Builds an engine whose capture source is the given PipeWire device.
+    pub fn for_device(device: audio_io::Device) -> Result<Self, EngineError> {
+        let source = audio_io::PipeWireAudioSource::new(&device)
+            .map_err(|e| EngineError::Start(format!("pipewire: {e}")))?;
+        Ok(Self::with_source(Box::new(source)))
+    }
+
+    /// Lists the capture devices visible on the PipeWire graph.
+    pub fn list_devices() -> Result<Vec<audio_io::Device>, EngineError> {
+        audio_io::list_capture_devices().map_err(|e| EngineError::Start(format!("pipewire: {e}")))
+    }
+
+    /// Resolves a user-supplied device selector to a capture device.
+    pub fn find_capture_device(selector: &str) -> Result<Option<audio_io::Device>, EngineError> {
+        audio_io::find_capture_device(selector)
+            .map_err(|e| EngineError::Start(format!("pipewire: {e}")))
+    }
+
+    fn with_source(source: Box<dyn AudioSource + Send>) -> Self {
         Self {
-            source: Arc::new(Mutex::new(FakeAudioSource::new())),
+            source: Arc::new(Mutex::new(source)),
             clock: Arc::new(Mutex::new(FrameClock::default())),
             recorder: Arc::new(Mutex::new(None)),
             stop: Arc::new(AtomicBool::new(false)),
@@ -139,7 +160,11 @@ impl Engine for CarmaEngine {
 
         // Recover a poisoned lock: if the worker panicked while holding it, we
         // still take and finalize the recorder so the file is left valid.
-        let recorder = self.recorder.lock().unwrap_or_else(|e| e.into_inner()).take();
+        let recorder = self
+            .recorder
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
         if let Some(mut r) = recorder {
             if let Err(e) = r.finalize() {
                 problems.push(format!("finalize failed: {e}"));
@@ -175,8 +200,7 @@ mod tests {
 
         let done = {
             let mut done = 0u64;
-            let deadline =
-                std::time::Instant::now() + std::time::Duration::from_millis(400);
+            let deadline = std::time::Instant::now() + std::time::Duration::from_millis(400);
             while std::time::Instant::now() < deadline {
                 let s = engine.status();
                 if s.written_frames > 18_000 {
@@ -190,7 +214,10 @@ mod tests {
         };
 
         // The paced fake source must have streamed real-time frames.
-        assert!(done > 1000, "engine should have captured frames, got {done}");
+        assert!(
+            done > 1000,
+            "engine should have captured frames, got {done}"
+        );
         engine.stop().unwrap();
         let status = engine.status();
         assert!(!status.recording, "engine must report stopped");
