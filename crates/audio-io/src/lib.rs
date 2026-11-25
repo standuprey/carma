@@ -5,5 +5,9 @@
 #![forbid(unsafe_code)]
 
 mod fake;
+pub mod pipewire;
 
 pub use fake::FakeAudioSource;
+pub use pipewire::{
+    find_capture_device, find_node, list_capture_devices, AudioIoError, Device, PipeWireAudioSource,
+};
