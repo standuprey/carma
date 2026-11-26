@@ -38,6 +38,10 @@ pub trait Clock {
 pub trait Recorder {
     fn push(&mut self, buf: &[f32]) -> Result<(), RecorderError>;
     fn finalize(&mut self) -> Result<(), RecorderError>;
+    /// Number of frames fully written so far. Meaningful at any point; after
+    /// a take that failed mid-write it reports exactly the frames whose bytes
+    /// were accepted, so surfaced counts agree with the finalized header.
+    fn frames_written(&self) -> u64;
 }
 
 /// Run state surfaced through the engine control facade.
@@ -61,6 +65,8 @@ pub trait Engine {
 pub enum RecorderError {
     #[error("recorder io error: {0}")]
     Io(String),
+    #[error("disk full: {0}")]
+    DiskFull(String),
     #[error("recorder already finalized")]
     AlreadyFinalized,
     #[error("misaligned frame buffer")]
