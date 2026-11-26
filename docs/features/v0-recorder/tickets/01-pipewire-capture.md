@@ -19,7 +19,24 @@ chosen source into the recorder.
 - Enumerate capture sources from the PipeWire registry.
 - `carma devices` prints available sources.
 - The engine wires the real backend for `record -d <device>`; `FakeAudioSource`
-  remains for tests.
+  remains for tests (injected through the engine, never a CLI default).
+
+## Requirement confirmation
+
+Settled with the user before implementation (2026-11-25):
+- `-d <device>` matches by substring against the node's `node.description`,
+  falling back to exact `node.name`. Multiple description matches pick the
+  first.
+- `carma record` requires `-d`; a missing device is an error (usage exit, no
+  fake default in the CLI path). The fake source is reachable only via tests
+  through the engine.
+- The PipeWire capture test uses a virtual loopback pair and is skipped with a
+  clear message when the PipeWire daemon is unreachable, so the suite stays
+  CI-friendly.
+- `engine` is treated as an additional touched module for this ticket: it
+  exposes device listing to the CLI (the CLI never reaches into `audio-io`
+  directly) and wires a real PipeWire source through `CarmaEngine` for
+  `record -d`.
 
 ## Example
 ```text

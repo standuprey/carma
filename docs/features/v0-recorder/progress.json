@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-11-23T00:27Z",
+  "updated": "2026-11-25T03:02Z",
   "gates": {
     "G0": {
       "state": "approved",
@@ -17,29 +17,66 @@
     {
       "ref": "#1",
       "url": "https://github.com/standuprey/carma/issues/1",
-      "state": "open"
+      "state": "open",
+      "checked": "2026-11-25T03:04Z"
     }
   ],
   "tickets": {
     "00": {
-      "status": "todo",
+      "status": "done",
+      "verification": "cargo test green (audio-io 2, clock 1, recorder 2, engine 1); CLI manual: recorded 48008 frames = 1.000167s; ffprobe reads pcm_s24le 48k stereo 24bit duration 1.000167s; volumedetect max 0.0dB non-silent. Commit 5a2de04. Interfaces crate shipped as real code, review in PR #6",
+      "branch": "ticket/v0-recorder-00",
+      "prs": [
+        {
+          "number": 6,
+          "url": "https://github.com/standuprey/carma/pull/6",
+          "branch": "ticket/v0-recorder-00",
+          "base": "master",
+          "state": "merged",
+          "checked": "2026-11-25T02:27Z"
+        }
+      ],
       "issues": [
         {
           "ref": "#2",
           "url": "https://github.com/standuprey/carma/issues/2",
-          "state": "open"
+          "state": "closed",
+          "checked": "2026-11-25T02:27Z"
         }
-      ]
+      ],
+      "updated": "2026-11-25T02:27Z",
+      "worktree": "/home/standup/Projects/carma.lane-00",
+      "acceptance": {
+        "state": "approved",
+        "at": "2026-11-25T02:27Z",
+        "note": "Closed by /dt-check-merged after live merge checks"
+      }
     },
     "01": {
-      "status": "todo",
+      "status": "review",
+      "next": "review PR #7",
+      "verification": "cargo test workspace: audio-io 5 (incl PipeWire loopback capture w/ injected 1kHz tone), clock 1, recorder 2, engine 1 all pass. CLI devices -> 2 sources; record -d + SIGINT -> valid 24-bit 48k stereo WAV, header==written_frames; missing -d -> exit 2. Loopback test skips when PipeWire/tools absent. fmt+clippy clean on touched crates (pre-existing recorder warning out of scope)",
+      "branch": "ticket/v0-recorder-01",
+      "prs": [
+        {
+          "number": 7,
+          "url": "https://github.com/standuprey/carma/pull/7",
+          "branch": "ticket/v0-recorder-01",
+          "base": "master",
+          "state": "open",
+          "checked": "2026-11-25T03:04Z"
+        }
+      ],
       "issues": [
         {
           "ref": "#3",
           "url": "https://github.com/standuprey/carma/issues/3",
-          "state": "open"
+          "state": "open",
+          "checked": "2026-11-25T03:04Z"
         }
-      ]
+      ],
+      "updated": "2026-11-25T03:02Z",
+      "worktree": "/home/standup/Projects/carma.lane-01"
     },
     "02": {
       "status": "todo",
@@ -47,7 +84,8 @@
         {
           "ref": "#4",
           "url": "https://github.com/standuprey/carma/issues/4",
-          "state": "open"
+          "state": "open",
+          "checked": "2026-11-25T03:04Z"
         }
       ]
     },
@@ -57,7 +95,8 @@
         {
           "ref": "#5",
           "url": "https://github.com/standuprey/carma/issues/5",
-          "state": "open"
+          "state": "open",
+          "checked": "2026-11-25T03:04Z"
         }
       ]
     }

@@ -43,3 +43,14 @@ Real PipeWire capture, `carma devices`, disk-full handling, real Scarlett hardwa
   recorded duration.
 - A human reviews the interfaces in this PR: the traits are minimal, and the CLI
   reaches modules only through the engine control facade.
+
+## Requirement confirmation (interview, 2026-11-23)
+Confirmed scope: Cargo workspace, one crate per module; `interfaces`
+(`AudioSource`/`Clock`/`Recorder` traits + engine control facade); `clock`
+passive sample-accurate frame counter; `audio-io` `FakeAudioSource` (stereo f32
+48 kHz, 1 kHz sine) as the fake capture port; `recorder` writes 24-bit PCM WAV
+and finalizes on stop; `engine` composition root (start/stop/status/wiring);
+`cli` `carma record -o out.wav` reaching modules only through the engine facade.
+Sample rate fixed 48000 Hz, quantum 1024, ring buffer ≈10 periods, WAV/RIFF
+24-bit PCM stereo. Done when as above. Out of scope: real PipeWire capture,
+`carma devices`, disk-full handling, real Scarlett hardware.

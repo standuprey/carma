@@ -13,8 +13,8 @@ one place.
 
 Goals
 - `carma devices` lists available capture sources (the Scarlett's two mic inputs).
-- `carma record [-o out.wav] [-d device]` records stereo; Ctrl-C stops and
-  finalizes a valid WAV.
+- `carma record -d <device> [-o out.wav]` records stereo from a real capture
+  device; Ctrl-C stops and finalizes a valid WAV.
 - Modules are exchangeable: every module implements a trait declared in the
   `interfaces` crate and is wired only in `engine`.
 - Recording length is sample-accurate.
