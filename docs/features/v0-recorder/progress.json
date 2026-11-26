@@ -1,6 +1,7 @@
 {
   "version": 1,
-  "updated": "2026-11-25T03:02Z",
+  "updated": "2026-11-26T19:24Z",
+  "next": "Gate 3: waiting for my decision (reviewed; 2 should-findings fixed and pushed (ddf2b75): take ends on write error without signal; push batches per chunk. 16/16 tests green, clippy clean. verdict: merge)",
   "gates": {
     "G0": {
       "state": "approved",
@@ -18,7 +19,7 @@
       "ref": "#1",
       "url": "https://github.com/standuprey/carma/issues/1",
       "state": "open",
-      "checked": "2026-11-25T03:04Z"
+      "checked": "2026-11-26T17:11Z"
     }
   ],
   "tickets": {
@@ -53,8 +54,7 @@
       }
     },
     "01": {
-      "status": "review",
-      "next": "review PR #7",
+      "status": "done",
       "verification": "cargo test workspace: audio-io 5 (incl PipeWire loopback capture w/ injected 1kHz tone), clock 1, recorder 2, engine 1 all pass. CLI devices -> 2 sources; record -d + SIGINT -> valid 24-bit 48k stereo WAV, header==written_frames; missing -d -> exit 2. Loopback test skips when PipeWire/tools absent. fmt+clippy clean on touched crates (pre-existing recorder warning out of scope)",
       "branch": "ticket/v0-recorder-01",
       "prs": [
@@ -63,31 +63,59 @@
           "url": "https://github.com/standuprey/carma/pull/7",
           "branch": "ticket/v0-recorder-01",
           "base": "master",
-          "state": "open",
-          "checked": "2026-11-25T03:04Z"
+          "state": "merged",
+          "checked": "2026-11-26T03:11Z"
         }
       ],
       "issues": [
         {
           "ref": "#3",
           "url": "https://github.com/standuprey/carma/issues/3",
-          "state": "open",
-          "checked": "2026-11-25T03:04Z"
+          "state": "closed",
+          "checked": "2026-11-26T03:11Z"
         }
       ],
-      "updated": "2026-11-25T03:02Z",
-      "worktree": "/home/standup/Projects/carma.lane-01"
+      "updated": "2026-11-26T03:11Z",
+      "worktree": "/home/standup/Projects/carma.lane-01",
+      "acceptance": {
+        "state": "approved",
+        "at": "2026-11-26T03:11Z",
+        "note": "Closed by /dt-check-merged after live merge checks"
+      }
     },
     "02": {
-      "status": "todo",
+      "status": "review",
+      "next": "Gate 3: waiting for the merge decision (reviewed; 2 should-findings fixed and pushed (ddf2b75): take ends on write error without signal; push batches per chunk. 16/16 tests green, clippy clean. verdict: merge)",
+      "todo": [
+        "review fixes applied and pushed: record_until_signal ends on write error without signal; recorder push writes one block per chunk with exact partial-write counting"
+      ],
+      "verification": "cargo test workspace 12/12 green (recorder error/empty/flush-fail header; engine disk-full surfacing 300 frames==header==status; engine+cli SIGINT sample-accurate). fmt+clippy clean on touched crates. Manual smoke: SIGINT->exit 0, 38315 frames header==bytes. Commits f8594fb/f0845f0/4c91499, PR #8 vs master closes #4",
+      "branch": "ticket/v0-recorder-02",
+      "prs": [
+        {
+          "number": 8,
+          "url": "https://github.com/standuprey/carma/pull/8",
+          "branch": "ticket/v0-recorder-02",
+          "base": "master",
+          "state": "open",
+          "checked": "2026-11-26T17:11Z"
+        }
+      ],
       "issues": [
         {
           "ref": "#4",
           "url": "https://github.com/standuprey/carma/issues/4",
           "state": "open",
-          "checked": "2026-11-25T03:04Z"
+          "checked": "2026-11-26T17:11Z"
         }
-      ]
+      ],
+      "updated": "2026-11-26T19:24Z",
+      "worktree": "/home/standup/Projects/carma",
+      "acceptance": {
+        "state": "pending",
+        "at": "2026-11-26T19:24Z",
+        "note": "reviewed; 2 should-findings fixed and pushed (ddf2b75): take ends on write error without signal; push batches per chunk. 16/16 tests green, clippy clean. verdict: merge"
+      }
     },
     "03": {
       "status": "todo",
@@ -96,7 +124,7 @@
           "ref": "#5",
           "url": "https://github.com/standuprey/carma/issues/5",
           "state": "open",
-          "checked": "2026-11-25T03:04Z"
+          "checked": "2026-11-26T17:11Z"
         }
       ]
     }
