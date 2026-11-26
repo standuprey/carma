@@ -95,8 +95,10 @@ impl CarmaEngine {
         }
     }
 
-    /// Records continuously until Ctrl-C, then finalizes. Installs the
-    /// process-wide Ctrl-C handler and blocks until the signal fires.
+    /// Records continuously until Ctrl-C or until the take ends on a write
+    /// error (e.g. disk full), then finalizes and surfaces the outcome.
+    /// Installs the process-wide Ctrl-C handler and blocks until either
+    /// happens.
     pub fn record_until_signal(&mut self, out_path: &Path) -> Result<(), EngineError> {
         self.start(out_path)?;
         let (tx, rx) = mpsc::channel::<()>();
@@ -112,8 +114,28 @@ impl CarmaEngine {
         })?;
         // Keep the sender alive so `rx` does not close while recording.
         let _alive = tx;
-        let _ = rx.recv();
+        // Wait for Ctrl-C, but also end promptly when the record worker stops
+        // on a write error: the take is over and the caller must learn it
+        // failed instead of hanging until another signal.
+        self.wait_for_stop(&rx);
         self.stop()
+    }
+
+    /// Blocks until the take ends: Ctrl-C (a message on `rx`), a write error
+    /// in the record worker, or an external stop.
+    fn wait_for_stop(&self, rx: &mpsc::Receiver<()>) {
+        loop {
+            if rx
+                .recv_timeout(std::time::Duration::from_millis(50))
+                .is_ok()
+            {
+                return;
+            }
+            if self.write_error.lock().unwrap().is_some() || !self.recording.load(Ordering::Acquire)
+            {
+                return;
+            }
+        }
     }
 }
 
@@ -321,6 +343,45 @@ mod tests {
             engine.status().written_frames,
             300,
             "surfaced frame count must match the recorded bytes"
+        );
+
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn take_ending_on_disk_full_stops_without_a_signal() {
+        let path = std::env::temp_dir().join(format!("carma_autostop_{}.wav", std::process::id()));
+        let budget = 300 * 2 * 3;
+        let mut engine = CarmaEngine::with_recorder_factory(Box::new(move |path| {
+            let file = std::fs::File::create(path).map_err(|e| RecorderError::Io(e.to_string()))?;
+            let writer = FailAfterWriter::new(
+                file,
+                budget,
+                std::io::Error::new(std::io::ErrorKind::StorageFull, "no space left on device"),
+            );
+            let r = WavRecorder::from_writer(writer, interfaces::SAMPLE_RATE, CHANNELS as u16)?;
+            Ok(Box::new(r) as Box<dyn Recorder + Send>)
+        }));
+        engine.start(&path).unwrap();
+
+        // No signal is sent: `wait_for_stop` must end on its own when the
+        // disk-full write fails, and `stop` must surface the failure.
+        let (_tx, rx) = mpsc::channel::<()>();
+        engine.wait_for_stop(&rx);
+        let message = engine.stop().unwrap_err().to_string();
+        assert!(
+            message.contains("disk full"),
+            "must classify the failure as disk full, got: {message}"
+        );
+        assert!(
+            message.contains("stopped, wrote 300 frames"),
+            "must report the frames actually written, got: {message}"
+        );
+
+        let h = read_wav_header(&path).unwrap();
+        assert_eq!(
+            h.num_frames, 300,
+            "partial header must match written frames"
         );
 
         std::fs::remove_file(&path).ok();

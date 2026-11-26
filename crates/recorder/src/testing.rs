@@ -9,9 +9,11 @@ use std::io::{self, Seek, SeekFrom, Write};
 const BODY_OFFSET: u64 = 44;
 
 /// A write target that accepts body bytes only up to a fixed budget, then
-/// fails every further body write. Header-region writes (offsets < 44) always
-/// succeed, mirroring real filesystems where a full disk still allows
-/// in-place overwrite of already-allocated header blocks.
+/// fails every further body write. A body write that crosses the budget is
+/// accepted only up to the remaining room — like a real disk filling up — so
+/// the recorder's partial-write accounting is exercised. Header-region writes
+/// (offsets < 44) always succeed, mirroring real filesystems where a full
+/// disk still allows in-place overwrite of already-allocated header blocks.
 #[derive(Debug)]
 pub struct FailAfterWriter {
     inner: File,
@@ -37,7 +39,15 @@ impl FailAfterWriter {
 impl Write for FailAfterWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         if self.pos >= BODY_OFFSET && self.pos + buf.len() as u64 > self.body_region_limit {
-            return Err(io::Error::new(self.err.kind(), self.err.to_string()));
+            // Accept as many bytes as fit up to the budget, then fail the
+            // rest (partial write, as a real full disk would produce).
+            let room = self.body_region_limit - self.pos;
+            if room == 0 {
+                return Err(io::Error::new(self.err.kind(), self.err.to_string()));
+            }
+            let n = self.inner.write(&buf[..room as usize])?;
+            self.pos += n as u64;
+            return Ok(n);
         }
         let n = self.inner.write(buf)?;
         self.pos += n as u64;

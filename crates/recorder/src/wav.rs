@@ -19,6 +19,9 @@ const OFFSET_RIFF_SIZE: u64 = 4;
 /// Offset of the data-chunk byte-count field (fixed at open).
 const OFFSET_DATA_SIZE: u64 = 40;
 
+/// Size of the canonical 44-byte WAV header before the data chunk begins.
+const HEADER_BYTES: u64 = 44;
+
 /// A seekable write target for the recorder. Internal union trait so the
 /// writer can be a single trait object with `Send`/`Debug`.
 trait WriteSeek: Write + Seek + Debug {}
@@ -38,13 +41,16 @@ pub struct WavHeader {
 /// A WAV recorder. Writes a placeholder header at open, streams interleaved
 /// 24-bit PCM, and rewrites the sizes on [`Recorder::finalize`].
 ///
-/// Body bytes are written straight through to the target and counted at the
-/// exact point `write_all` returns `Ok`, which is what keeps the finalized
-/// header consistent with the bytes actually written even when a take fails
-/// mid-write (e.g. disk full).
+/// Body bytes are written to the target in one block per push and counted at
+/// the exact point they land, which is what keeps the finalized header
+/// consistent with the bytes actually written even when a take fails
+/// mid-write (e.g. disk full): on a partial write failure the seekable
+/// writer's position reports how many bytes were accepted.
 #[derive(Debug)]
 pub struct WavRecorder {
     writer: Box<dyn WriteSeek + Send>,
+    /// Reused scratch buffer for encoding one pushed chunk.
+    scratch: Vec<u8>,
     channels: u16,
     body_bytes: u32,
     finalized: bool,
@@ -94,6 +100,7 @@ impl WavRecorder {
 
         Ok(Self {
             writer,
+            scratch: Vec::new(),
             channels,
             body_bytes: 0,
             finalized: false,
@@ -117,13 +124,30 @@ impl Recorder for WavRecorder {
         if !buf.len().is_multiple_of(usize::from(self.channels)) {
             return Err(RecorderError::Misaligned);
         }
+        // Encode the whole chunk first, then write it as one block: this
+        // keeps the write-syscall rate bounded by the push rate (~47/s at the
+        // 1024-frame quantum) instead of one 3-byte write per sample (~96k/s).
+        self.scratch.clear();
+        self.scratch.reserve(buf.len() * BYTES_PER_SAMPLE as usize);
         for &sample in buf {
             let scaled = (f64::from(sample).clamp(-1.0, 1.0) * 8_388_607.0) as i32;
-            let bytes = scaled.to_le_bytes();
-            self.writer.write_all(&bytes[..3]).map_err(map_io_err)?;
-            self.body_bytes += BYTES_PER_SAMPLE;
+            self.scratch.extend_from_slice(&scaled.to_le_bytes()[..3]);
         }
-        Ok(())
+        match self.writer.write_all(&self.scratch) {
+            Ok(()) => {
+                self.body_bytes += self.scratch.len() as u32;
+                Ok(())
+            }
+            Err(e) => {
+                // A real disk-full can accept part of a block before failing;
+                // count exactly the bytes that landed via the writer position
+                // so `frames_written` and the finalized header match the file.
+                if let Ok(pos) = self.writer.stream_position() {
+                    self.body_bytes = pos.saturating_sub(HEADER_BYTES) as u32;
+                }
+                Err(map_io_err(e))
+            }
+        }
     }
 
     fn finalize(&mut self) -> Result<(), RecorderError> {
