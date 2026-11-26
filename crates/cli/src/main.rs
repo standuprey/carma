@@ -96,23 +96,39 @@ fn record(mut args: impl Iterator<Item = String>) -> ExitCode {
         return ExitCode::from(2);
     };
 
-    let device = match CarmaEngine::find_capture_device(&selector) {
-        Ok(Some(d)) => d,
-        Ok(None) => {
-            eprintln!("no capture device matches: {selector}");
-            return ExitCode::FAILURE;
+    // Test-only capture hook: records from the built-in fake source so the
+    // CLI's interruption/robustness is testable without hardware or a
+    // PipeWire daemon. Never the default.
+    let fake_capture = match std::env::var("CARMA_CAPTURE") {
+        Ok(v) if v == "fake" => true,
+        Ok(other) => {
+            eprintln!("unknown CARMA_CAPTURE value: {other}");
+            return ExitCode::from(2);
         }
-        Err(e) => {
-            eprintln!("failed to look up device: {e}");
-            return ExitCode::FAILURE;
-        }
+        Err(_) => false,
     };
 
-    let mut engine = match CarmaEngine::for_device(device) {
-        Ok(e) => e,
-        Err(err) => {
-            eprintln!("failed to open device: {err}");
-            return ExitCode::FAILURE;
+    let mut engine = if fake_capture {
+        eprintln!("note: using built-in test capture source (CARMA_CAPTURE=fake)");
+        CarmaEngine::new()
+    } else {
+        let device = match CarmaEngine::find_capture_device(&selector) {
+            Ok(Some(d)) => d,
+            Ok(None) => {
+                eprintln!("no capture device matches: {selector}");
+                return ExitCode::FAILURE;
+            }
+            Err(e) => {
+                eprintln!("failed to look up device: {e}");
+                return ExitCode::FAILURE;
+            }
+        };
+        match CarmaEngine::for_device(device) {
+            Ok(e) => e,
+            Err(err) => {
+                eprintln!("failed to open device: {err}");
+                return ExitCode::FAILURE;
+            }
         }
     };
 
@@ -123,6 +139,8 @@ fn record(mut args: impl Iterator<Item = String>) -> ExitCode {
     );
 
     if let Err(e) = engine.record_until_signal(&out) {
+        // A write error/disk-full mid-take: the partial file was finalized,
+        // but the take did not complete, so this is a failure.
         eprintln!("recording failed: {e}");
         return ExitCode::FAILURE;
     }
