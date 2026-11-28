@@ -338,8 +338,11 @@ impl AudioSource for PipeWireAudioSource {
         let available = fifo.len() / self.channels;
         let frames = available.min(max_frames);
         if frames == 0 {
-            // Backpressure: no frames ready yet. Pause so the consumer does not
-            // busy-loop (mirrors the fake source's pacing behaviour).
+            // Backpressure: no frames ready yet. Sleep WITHOUT holding the
+            // FIFO lock: the PipeWire process callback (real-time thread) must
+            // lock the same FIFO to push new samples, and a lock held across a
+            // sleep starves that callback and stalls capture.
+            drop(fifo);
             std::thread::sleep(Duration::from_millis(1));
             return 0;
         }
