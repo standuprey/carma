@@ -39,3 +39,10 @@ Any feature changes; this ticket is verification on real hardware only.
   respectively.
 - Playback is the real captured signal with no audible dropouts and no reported
   underruns.
+
+## Requirement confirmation
+Confirmed 2026-11-28. The deliverable for this ticket is the step-by-step human
+test procedure at `docs/test_recording.md` (scope: a real Scarlett Solo take
+verifying sample-accurate length, L/R input mapping, real signal content, and no
+underruns/dropouts). Acceptance is the human running that procedure and checking
+all the boxes in `test_recording.md`; no further code changes were requested.
